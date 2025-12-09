@@ -16,4 +16,13 @@ class FinGoodsController extends Controller
         
         return FinGoodsResource::collection($FinGoods);
     }
+
+    public function countItem($period)
+    {
+        $total = FinishedGoods::where('Period', $period)->count();
+
+        return response()->json([
+            'total' => $total
+        ]);
+    }
 }

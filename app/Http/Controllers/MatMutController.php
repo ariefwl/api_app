@@ -16,4 +16,13 @@ class MatMutController extends Controller
 
         return MatMutResource::collection($MatMutation);
     }
+
+    public function countItem($period)
+    {
+        $total = MaterialMutation::where('Period', $period)->count();
+
+        return response()->json([
+            'total' => $total
+        ]);
+    }
 }

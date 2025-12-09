@@ -16,4 +16,13 @@ class MatUseController extends Controller
         
         return MatUseResource::collection($MaterialUse);
     }
+
+    public function countItem($period)
+    {
+        $total = MaterialUse::where('Period', $period)->count();
+
+        return response()->json([
+            'total' => $total
+        ]);
+    }
 }

@@ -16,4 +16,13 @@ class FGMutationController extends Controller
         
         return FGMutationResource::collection($FGMutation);
     }
+
+    public function countItem($period)
+    {
+        $total = FGMutation::where('Period', $period)->count();
+
+        return response()->json([
+            'total' => $total
+        ]);
+    }
 }

@@ -16,4 +16,13 @@ class SalesController extends Controller
 
         return SalesResource::collection($Sales);
     }
+
+    public function countItem($period)
+    {
+        $total = Sales::where('Period', $period)->count();
+
+        return response()->json([
+            'total' => $total
+        ]);
+    }
 }

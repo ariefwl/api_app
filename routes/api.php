@@ -26,12 +26,21 @@ Route::middleware('auth:sanctum')->group(function(){
     
     Route::get('/purchases/{period}', [PurchaseController::class, 'getPurchaseData']);
     Route::get('/matuse/{period}', [MatUseController::class, 'getMaterialUseData']);
+    Route::get('/fgmut/{period}', [FGMutationController::class, 'getFGMutationData']);
     Route::get('/fingoods/{period}', [FinGoodsController::class, 'getFinGoodsData']);
     Route::get('/sales/{period}', [SalesController::class, 'getSalesData']);
     Route::get('/matmut/{period}', [MatMutController::class, 'getMatMutData']);
-    Route::get('/fgmut/{period}', [FGMutationController::class, 'getFGMutationData']);
     Route::get('/waste/{period}', [WasteController::class, 'getWasteData']);
     Route::get('/user', [UserController::class, 'getUserData']);
+    
+    Route::get('/purchase/count/{period}', [PurchaseController::class, 'countItem']);
+    Route::get('/waste/count/{period}', [WasteController::class, 'countItem']);
+    Route::get('/sales/count/{period}', [SalesController::class, 'countItem']);
+    Route::get('/fgmut/count/{period}', [FGMutationController::class, 'countItem']);
+    Route::get('/matuse/count/{period}', [MatUseController::class, 'countItem']);
+    Route::get('/fingoods/count/{period}', [FinGoodsController::class, 'countItem']);
+    Route::get('/fgmut/count/{period}', [FGMutationController::class, 'countItem']);
+    Route::get('/matmut/count/{period}', [MatMutController::class, 'countItem']);
 });
 
 

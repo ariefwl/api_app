@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+use function Laravel\Prompts\select;
+
 class Purchase extends Model
 {
     use HasFactory;
@@ -82,6 +84,7 @@ class Purchase extends Model
         ]);
     }
 
+    
     public function scopeForPeriod($query, $period)
     {
         return $query->where('Period', $period);

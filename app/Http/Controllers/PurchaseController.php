@@ -18,4 +18,13 @@ class PurchaseController extends Controller
         
         return PurchaseResource::collection($purchases);
     }
+
+    public function countItem($period)
+    {
+        $total = Purchase::where('Period', $period)->count();
+
+        return response()->json([
+            'total' => $total
+        ]);
+    }
 }

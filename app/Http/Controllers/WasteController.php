@@ -16,4 +16,13 @@ class WasteController extends Controller
 
         return WasteResource::collection($Waste);
     }
+
+    public function countItem($period)
+    {
+        $total = Waste::where('Period', $period)->count();
+
+        return response()->json([
+            'total' => $total
+        ]);
+    }
 }
