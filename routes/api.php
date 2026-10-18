@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\AuhtController;
 use App\Http\Controllers\FGMutationController;
+use App\Http\Controllers\KaBer\AssetMutationController;
 use App\Http\Controllers\KaBer\FGMutationController as KaBerFGMutationController;
 use App\Http\Controllers\FinGoodsController;
+use App\Http\Controllers\KaBer\WasteMutationController;
 use App\Http\Controllers\MatMutController;
 use App\Http\Controllers\KaBer\MatMutController as KaBerMatMutController;
 use App\Http\Controllers\MatUseController;
@@ -56,6 +58,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/matmut-kb', [KaBerMatMutController::class, 'getMatMutData']);
     Route::get('/wip-kb', [wipController::class, 'getWIPData']);
     Route::get('/fgmut-kb', [KaBerFGMutationController::class, 'getFGMutationData']);
+    Route::get('/assetmut-kb', [AssetMutationController::class, 'getAssetMutationData']);
+    Route::get('/wastemut-kb', [WasteMutationController::class, 'getWasteMutationData']);
 });
 
 
