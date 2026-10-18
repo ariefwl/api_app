@@ -20,10 +20,10 @@ class FinishedGoods extends Model
 
     public function scopeSelectedFields($query)
     {
-        return $query->select(['IDNo','FGNo','FGDate','ItemCode','Unit','Qty','SubContract','WarehouseName'])->with(['inventory:PartNo,InvName']);
+        return $query->select(['IDNo','FGNo','FGDate','ItemCode','Unit','Qty','SubConQty','SubContract','WarehouseName'])->with(['inventory:PartNo,InvName']);
     }
 
-    public function scopeForPeriod($query, $period)
+    public function scopePeriode($query, $period)
     {
         return $query->where('Period', $period);
     }

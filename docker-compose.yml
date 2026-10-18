@@ -7,7 +7,7 @@ services:
       restart: always
       entrypoint: php artisan octane:frankenphp
       ports:
-        - ${APP_PORT:-8000}:8000
+        - ${APP_PORT:-8080}:8000
       volumes:
         - .:/app
         - ./vendor:/app/vendor

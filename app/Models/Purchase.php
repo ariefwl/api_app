@@ -54,7 +54,7 @@ class Purchase extends Model
         return $purRecDetail ? $purRecDetail->InvNo : null;
     }
 
-    public function scopeWithSelectedFields($query)
+    public function scopeSelectedFields($query)
     {
         return $query->select([
             'IDNo',
@@ -85,7 +85,7 @@ class Purchase extends Model
     }
 
     
-    public function scopeForPeriod($query, $period)
+    public function scopePeriode($query, $period)
     {
         return $query->where('Period', $period);
     }
