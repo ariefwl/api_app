@@ -26,6 +26,11 @@ class Purchase extends Model
         return $this->belongsTo(Supplier::class, 'SupplierId', 'SupplierID');
     }
 
+    public function ware()
+    {
+        return $this->belongsTo(Ware::class, 'WareID', 'WareId');
+    }
+
     public function scopePeriode($query, $period)
     {
         return $query->where('PurchaseKB.Period', $period);

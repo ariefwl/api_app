@@ -4,52 +4,47 @@ namespace App\Http\Controllers\KaBer;
 
 use App\Http\Controllers\Controller;
 use App\Models\KaBer\Purchase;
+use App\Models\KaBer\Ware;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PurchaseController extends Controller
 {
+
     public function getPurchaseData(Request $request)
     {
         $columns = [
-            0 => 'PurchaseKB.IDNo',
-            1 => 'PurchaseKB.DocType',
-            2 => 'PurchaseKB.PIBNo',
-            3 => 'PurchaseKB.PIBDate',
-            4 => 'PurchaseKB.SerialNo',
-            5 => 'PurchaseKB.GRNo',
-            6 => 'PurchaseKB.GRDate',
-            7 => 'Supplier.[Supplier Name]',
-            8 => 'Inventory.PartNo',
-            9 => 'Inventory.InvName',
-            10 => 'PurchaseKB.Qty',
-            11 => 'PurchaseKB.Unit',
-            12 => 'PurchaseKB.Currency',
-            13 => 'PurchaseKB.Amount',
-            14 => 'PurchaseKB.Up',
-            15 => 'PurchaseKB.Rate',
-            16 => 'PurchaseKB.ConUp',
-            17 => 'PurchaseKB.ConAmount'
+            0 => 'PurchaseKB.DocType',
+            1 => 'PurchaseKB.PIBNo',
+            2 => 'PurchaseKB.PIBDate',
+            3 => 'PurchaseKB.GRNo',
+            4 => 'PurchaseKB.GRDate',
+            5 => 'Supplier.[Supplier Name]',
+            6 => 'Inventory.PartNo',
+            7 => 'Inventory.InvName',
+            8 => 'PurchaseKB.Unit',
+            9 => 'PurchaseKB.Qty',
+            10 => 'PurchaseKB.Currency',
+            11 => 'PurchaseKB.Amount',
+            12 => 'PurchaseKB.Up',
+            13 => 'PurchaseKB.Rate',
+            14 => 'PurchaseKB.ConUp',
+            15 => 'PurchaseKB.ConAmount',
+            16 => 'PurRecDet.InvNo',
+            17 => 'Ware.[Warehouse Name]',
         ];
 
-        $length = (int) $request->input('length', 10);
-        $start = (int) $request->input('start', 0);
-        $search = $request->input('search.value');
         $period = $request->input('period');
+        $wareId = $request->input('wareId');
 
-        // $orderColumnIndex = (int) $request->input('order.0.column', 0);
-        // $orderColumn = $columns[$orderColumnIndex] ?? 'PurchaseKB.GRNo';
+        $start = max(0, (int) $request->input('start', 0));
+        $length = (int) $request->input('length', 10);
 
-        // $orderDir = strtolower(
-        //     $request->input('order.0.dir', 'asc')
-        // );
+        // DataTables mengirim search sebagai objek dengan properti value.
+        $search = trim((string) $request->input('search', ''));
 
-        // Validasi arah pengurutan
-        // if (!in_array($orderDir, ['asc', 'desc'], true)) {
-        //     $orderDir = 'asc';
-        // }
-
-        $query = Purchase::query()
+        // Query dasar: samakan kolom dan JOIN dengan DBeaver.
+        $baseQuery = Purchase::query()
             ->leftJoin(
                 'JIData.dbo.Supplier as Supplier',
                 'PurchaseKB.SupplierId',
@@ -62,63 +57,144 @@ class PurchaseController extends Controller
                 '=',
                 'Inventory.InvId'
             )
+            ->leftJoin(
+                'JIData.dbo.Ware as Ware',
+                'PurchaseKB.WareID',
+                '=',
+                'Ware.WareId'
+            )
+            ->join(
+                'JIData.dbo.PurRec as PurRec',
+                'PurchaseKB.GRNo',
+                '=',
+                'PurRec.GRNo'
+            )
+            ->join(
+                'JIData.dbo.PurRecDet as PurRecDet',
+                'PurRec.IDNo',
+                '=',
+                'PurRecDet.IDNo'
+            )
             ->where('PurchaseKB.Period', $period)
+            ->where('PurRecDet.PickBill', 1)
+            ->when(
+                $wareId !== null && $wareId !== '',
+                function ($query) use ($wareId) {
+                    $query->where('PurchaseKB.WareID', $wareId);
+                }
+            )
             ->select([
-                'PurchaseKB.IDNo',
                 'PurchaseKB.DocType',
                 'PurchaseKB.PIBNo',
                 'PurchaseKB.PIBDate',
-                'PurchaseKB.SerialNo',
                 'PurchaseKB.GRNo',
                 'PurchaseKB.GRDate',
-                DB::raw('Supplier.[Supplier Name] AS [Supplier Name]'),
-                DB::raw('Inventory.PartNo'),
-                DB::raw('Inventory.InvName'),
-                'PurchaseKB.Qty',
+                DB::raw(
+                    'Supplier.[Supplier Name] AS [Supplier Name]'
+                ),
+                'Inventory.PartNo',
+                'Inventory.InvName',
                 'PurchaseKB.Unit',
+                'PurchaseKB.Qty',
                 'PurchaseKB.Currency',
                 'PurchaseKB.Amount',
                 'PurchaseKB.Up',
                 'PurchaseKB.Rate',
                 'PurchaseKB.ConUp',
-                'PurchaseKB.ConAmount'
-            ]);
+                'PurchaseKB.ConAmount',
+                'PurRecDet.InvNo',
+                DB::raw(
+                    'Ware.[Warehouse Name] AS [Warehouse Name]'
+                ),
+            ])
+            ->distinct();
 
-        // Jumlah seluruh data periode sebelum pencarian
-        $totalData = (clone $query)->count();
+        // Hitung seluruh baris unik sebelum pencarian.
+        $totalData = DB::query()
+            ->fromSub(clone $baseQuery, 'purchase_results')
+            ->count();
 
-        // Pencarian DataTables
+        // Terapkan pencarian jika diisi.
+        $filteredQuery = clone $baseQuery;
+
         if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
-                $q->where('PurchaseKB.PartNo', 'LIKE', "%{$search}%")
-                    ->orWhere(
-                        'Supplier.[Supplier Name]',
-                        'LIKE',
-                        "%{$search}%"
-                    )
-                    ->orWhereHas('inventory', function ($inv) use ($search) {
-                        $inv->where(
-                            'InvName',
-                            'LIKE',
-                            "%{$search}%"
-                        );
-                    });
+            $filteredQuery->where(function ($q) use ($search) {
+                $keyword = "%{$search}%";
+
+                $q->where('Inventory.PartNo', 'LIKE', $keyword)
+                    ->orWhere('Inventory.InvName', 'LIKE', $keyword)
+                    ->orWhere('PurchaseKB.GRNo', 'LIKE', $keyword)
+                    ->orWhere('PurchaseKB.PIBNo', 'LIKE', $keyword)
+                    ->orWhere('PurRecDet.InvNo', 'LIKE', $keyword)
+                    ->orWhereRaw(
+                        '[Supplier].[Supplier Name] LIKE ?',
+                        [$keyword]
+                    );
             });
         }
 
-        $totalFiltered = (clone $query)->count();
+        // Hitung baris unik setelah pencarian.
+        $totalFiltered = DB::query()
+            ->fromSub(clone $filteredQuery, 'filtered_results')
+            ->count();
 
-        $data = $query
+        // Urutkan dan ambil halaman data.
+        $dataQuery = clone $filteredQuery;
+
+        $orderColumnIndex = (int) $request->input(
+            'order.0.column',
+            3
+        );
+
+        $orderColumn = $columns[$orderColumnIndex]
+            ?? 'PurchaseKB.GRNo';
+
+        $orderDir = strtolower(
+            $request->input('order.0.dir', 'asc')
+        );
+
+        if (!in_array($orderDir, ['asc', 'desc'], true)) {
+            $orderDir = 'asc';
+        }
+
+        $dataQuery
+            ->orderBy($orderColumn, $orderDir)
             ->orderBy('PurchaseKB.GRNo', 'asc')
-            ->orderBy('Inventory.PartNo', 'asc')
-            ->offset($start)
-            ->limit($length)
-            ->get();
+            ->orderBy('Inventory.PartNo', 'asc');
+
+        if ($length !== -1) {
+            $dataQuery->offset($start)->limit(max(1, $length));
+        }
+
+        $data = $dataQuery->get();
 
         return response()->json([
             'draw' => (int) $request->input('draw'),
             'recordsTotal' => $totalData,
             'recordsFiltered' => $totalFiltered,
+            'data' => $data
+        ]);
+    }
+
+
+    public function countItem($period)
+    {
+        $total = Purchase::where('Period', $period)->count();
+
+        return response()->json([
+            'total' => $total
+        ]);
+    }
+
+    public function getWareHouses(Request $request)
+    {
+        $data = Ware::query()
+            ->select(['WareId', 'Warehouse Name as WarehouseName'])
+            ->where('KB', 1)
+            ->orderBy('WareId', 'desc')
+            ->get();
+
+        return response()->json([
             'data' => $data,
         ]);
     }

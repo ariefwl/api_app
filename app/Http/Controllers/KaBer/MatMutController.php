@@ -12,7 +12,6 @@ class MatMutController extends Controller
     public function getMatMutData(Request $request)
     {
         $columns = [
-            0 => 'MatMutKB.IDNo',
             1 => 'Inventory.PartNo',
             2 => 'Inventory.InvName',
             3 => 'MatMutKB.Unit',
@@ -29,6 +28,16 @@ class MatMutController extends Controller
         $search = $request->input('search.value');
         $period = $request->input('period');
 
+        // Sorting dari DataTables
+        $orderColumnIndex = (int) $request->input('order.0.column', 1);
+        $orderDir = $request->input('order.0.dir', 'asc');
+
+        // Pastikan direction valid
+        $orderDir = in_array(strtolower($orderDir), ['asc', 'desc']) ? $orderDir : 'asc';
+
+        // Ambil nama kolom dari mapping, default ke PartNo
+        $orderColumn = $columns[$orderColumnIndex] ?? 'Inventory.PartNo';
+
         $query = MaterialMutation::query()
             ->from('BC_Data.dbo.MaterialMutationKB as MatMutKB')
             ->leftJoin(
@@ -39,7 +48,6 @@ class MatMutController extends Controller
             )
             ->where('MatMutKB.Period', $period)
             ->select([
-                'MatMutKB.IDNo',
                 DB::raw('Inventory.PartNo'),
                 DB::raw('Inventory.InvName'),
                 'MatMutKB.Unit',
@@ -76,7 +84,7 @@ class MatMutController extends Controller
         $totalFiltered = (clone $query)->count();
 
         $data = $query
-            ->orderBy('Inventory.PartNo', 'asc')
+            ->orderBy($orderColumn, $orderDir)
             ->offset($start)
             ->limit($length)
             ->get();

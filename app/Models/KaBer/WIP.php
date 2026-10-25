@@ -15,7 +15,7 @@ class WIP extends Model
 
     public function inventory()
     {
-        return $this->belongsTo(Inventory::class, 'InvID', 'InvId');
+        return $this->belongsTo(Inventory::class, 'InvId', 'InvID');
     }
 
     public function scopePeriode($query, $period)

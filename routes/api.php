@@ -60,6 +60,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/fgmut-kb', [KaBerFGMutationController::class, 'getFGMutationData']);
     Route::get('/assetmut-kb', [AssetMutationController::class, 'getAssetMutationData']);
     Route::get('/wastemut-kb', [WasteMutationController::class, 'getWasteMutationData']);
+    Route::get('/warehouse-kb', [KaBerPurchaseController::class, 'getWareHouses']);
 });
 
 

@@ -11,12 +11,14 @@ class wipController extends Controller
 {
     public function getWIPData(Request $request)
     {
+        // Index 0 = kolom No (row number, tidak ada di DB)
+        // Index 1–5 = kolom data sebenarnya
         $columns = [
-            0 => 'Inventory.PartNo',
-            1 => 'Inventory.InvName',
-            2 => 'WIPKBDetail.Unit',
-            3 => 'WIPKBDetail.Qty',
-            4 => 'WIPKBDetail.Remark',
+            1 => 'Inventory.PartNo',
+            2 => 'Inventory.InvName',
+            3 => 'WIPKBDetail.Unit',
+            4 => 'WIPKBDetail.Qty',
+            5 => 'WIPKBDetail.Remark',
         ];
 
         $length = (int) $request->input('length', 10);
@@ -24,8 +26,18 @@ class wipController extends Controller
         $search = $request->input('search.value');
         $period = $request->input('period');
 
+        // Sorting dari DataTables
+        $orderColumnIndex = (int) $request->input('order.0.column', 1);
+        $orderDir = $request->input('order.0.dir', 'asc');
+
+        // Pastikan direction valid
+        $orderDir = in_array(strtolower($orderDir), ['asc', 'desc']) ? $orderDir : 'asc';
+
+        // Ambil nama kolom dari mapping, default ke PartNo
+        $orderColumn = $columns[$orderColumnIndex] ?? 'Inventory.PartNo';
+
         $query = WIP::query()
-            ->leftJoin(
+            ->join(
                 'JIData.dbo.Inventory as Inventory',
                 'WIPKBDetail.InvID',
                 '=',
@@ -46,26 +58,16 @@ class wipController extends Controller
         // Pencarian DataTables
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {
-                $q->where('PurchaseKB.PartNo', 'LIKE', "%{$search}%")
-                    ->orWhere(
-                        'Supplier.[Supplier Name]',
-                        'LIKE',
-                        "%{$search}%"
-                    )
-                    ->orWhereHas('inventory', function ($inv) use ($search) {
-                        $inv->where(
-                            'InvName',
-                            'LIKE',
-                            "%{$search}%"
-                        );
-                    });
+                $q->where('Inventory.PartNo', 'LIKE', "%{$search}%")
+                    ->orWhere('Inventory.InvName', 'LIKE', "%{$search}%")
+                    ->orWhere('WIPKBDetail.Remark', 'LIKE', "%{$search}%");
             });
         }
 
         $totalFiltered = (clone $query)->count();
 
         $data = $query
-            ->orderBy('Inventory.PartNo', 'asc')
+            ->orderBy($orderColumn, $orderDir)
             ->offset($start)
             ->limit($length)
             ->get();

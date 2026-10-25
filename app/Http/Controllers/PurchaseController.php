@@ -8,8 +8,6 @@ use Illuminate\Http\Request;
 
 class PurchaseController extends Controller
 {
-    // public $period = '202401';
-
     public function getPurchaseData(Request $request)
     {
         $columns = [
