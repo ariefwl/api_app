@@ -44,7 +44,146 @@ class PurchaseController extends Controller
         $search = trim((string) $request->input('search', ''));
 
         // Query dasar: samakan kolom dan JOIN dengan DBeaver.
-        $baseQuery = Purchase::query()
+        // $baseQuery = Purchase::query()
+        //     ->join(
+        //         'JIData.dbo.Supplier as Supplier',
+        //         'PurchaseKB.SupplierId',
+        //         '=',
+        //         'Supplier.SupplierID'
+        //     )
+        //     ->join(
+        //         'JIData.dbo.Inventory as Inventory',
+        //         'PurchaseKB.InvID',
+        //         '=',
+        //         'Inventory.InvId'
+        //     )
+        //     ->join(
+        //         'JIData.dbo.Ware as Ware',
+        //         'PurchaseKB.WareID',
+        //         '=',
+        //         'Ware.WareId'
+        //     )
+        //     ->join(
+        //         'JIData.dbo.PurRec as PurRec',
+        //         'PurchaseKB.GRNo',
+        //         '=',
+        //         'PurRec.GRNo'
+        //     )
+        //     ->join(
+        //         'JIData.dbo.PurRecDet as PurRecDet',
+        //         'PurRec.IDNo',
+        //         '=',
+        //         'PurRecDet.IDNo'
+        //     )
+        //     ->where('PurchaseKB.Period', $period)
+        //     ->where('PurRecDet.Qty', '!=', 0)
+        //     ->when(
+        //         $wareId !== null && $wareId !== '',
+        //         function ($query) use ($wareId) {
+        //             $query->where('PurchaseKB.WareID', $wareId);
+        //         }
+        //     )
+        //     ->select([
+        //         'PurchaseKB.DocType',
+        //         'PurchaseKB.PIBNo',
+        //         'PurchaseKB.PIBDate',
+        //         'PurchaseKB.GRNo',
+        //         'PurchaseKB.GRDate',
+        //         DB::raw(
+        //             'Supplier.[Supplier Name] AS [Supplier Name]'
+        //         ),
+        //         'Inventory.PartNo',
+        //         'Inventory.InvName',
+        //         'PurchaseKB.Unit',
+        //         'PurchaseKB.Qty',
+        //         'PurchaseKB.Currency',
+        //         'PurchaseKB.Amount',
+        //         'PurchaseKB.Up',
+        //         'PurchaseKB.Rate',
+        //         'PurchaseKB.ConUp',
+        //         'PurchaseKB.ConAmount',
+        //         'PurRecDet.InvNo',
+        //         DB::raw(
+        //             'Ware.[Warehouse Name] AS [Warehouse Name]'
+        //         ),
+        //     ])
+        //     ->distinct();
+
+
+        $purchaseRows = DB::table('BC_Data.dbo.PurchaseKB as pr')
+            ->select('pr.*')
+            ->selectRaw('
+                ROW_NUMBER() OVER (
+                    PARTITION BY
+                        pr.GRNo,
+                        pr.OrderNo,
+                        pr.InvID,
+                        pr.Qty
+                    ORDER BY pr.IDNo
+                ) AS rn
+            ')
+            ->where('pr.Period', $period)
+            ->when(
+                $wareId !== null && $wareId !== '',
+                function ($query) use ($wareId) {
+                    $query->where('pr.WareID', $wareId);
+                }
+            );
+
+        $detailRows = DB::table('JIData.dbo.PurRec as pr2')
+            ->join(
+                'JIData.dbo.PurRecDet as prd',
+                'pr2.IDNo',
+                '=',
+                'prd.IDNo'
+            )
+            ->select('pr2.GRNo')
+            ->addSelect('prd.*')
+            ->selectRaw('
+                ROW_NUMBER() OVER (
+                    PARTITION BY
+                        pr2.GRNo,
+                        prd.OrderNo,
+                        prd.InvId,
+                        prd.Qty
+                    ORDER BY prd.[LineNo]
+                ) AS rn
+            ')
+            ->where('prd.Qty', '<>', 0);
+
+        $baseQuery = DB::query()
+            ->fromSub($purchaseRows, 'PurchaseKB')
+            ->leftJoinSub(
+                $detailRows,
+                'PurRecDet',
+                function ($join) {
+                    $join->on(
+                        'PurRecDet.GRNo',
+                        '=',
+                        'PurchaseKB.GRNo'
+                    )
+                        ->on(
+                            'PurRecDet.OrderNo',
+                            '=',
+                            'PurchaseKB.OrderNo'
+                        )
+                        ->on(
+                            'PurRecDet.InvId',
+                            '=',
+                            'PurchaseKB.InvID'
+                        )
+                        ->on(
+                            'PurRecDet.Qty',
+                            '=',
+                            'PurchaseKB.Qty'
+                        )
+                        ->on(
+                            'PurRecDet.rn',
+                            '=',
+                            'PurchaseKB.rn'
+                        );
+                }
+            )
             ->leftJoin(
                 'JIData.dbo.Supplier as Supplier',
                 'PurchaseKB.SupplierId',
@@ -62,26 +201,6 @@ class PurchaseController extends Controller
                 'PurchaseKB.WareID',
                 '=',
                 'Ware.WareId'
-            )
-            ->join(
-                'JIData.dbo.PurRec as PurRec',
-                'PurchaseKB.GRNo',
-                '=',
-                'PurRec.GRNo'
-            )
-            ->join(
-                'JIData.dbo.PurRecDet as PurRecDet',
-                'PurRec.IDNo',
-                '=',
-                'PurRecDet.IDNo'
-            )
-            ->where('PurchaseKB.Period', $period)
-            ->where('PurRecDet.PickBill', 1)
-            ->when(
-                $wareId !== null && $wareId !== '',
-                function ($query) use ($wareId) {
-                    $query->where('PurchaseKB.WareID', $wareId);
-                }
             )
             ->select([
                 'PurchaseKB.DocType',
@@ -106,8 +225,8 @@ class PurchaseController extends Controller
                 DB::raw(
                     'Ware.[Warehouse Name] AS [Warehouse Name]'
                 ),
-            ])
-            ->distinct();
+            ]);
+
 
         // Hitung seluruh baris unik sebelum pencarian.
         $totalData = DB::query()
