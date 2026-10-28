@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\DB;
 
 class PurchaseController extends Controller
 {
-
     public function getPurchaseData(Request $request)
     {
         $columns = [
@@ -31,84 +30,19 @@ class PurchaseController extends Controller
             14 => 'PurchaseKB.ConUp',
             15 => 'PurchaseKB.ConAmount',
             16 => 'PurRecDet.InvNo',
-            17 => 'Ware.[Warehouse Name]',
+            17 => 'APInv.TaxNo',
+            18 => 'Ware.[Warehouse Name]',
         ];
 
         $period = $request->input('period');
-        $wareId = $request->input('wareId');
+        $wareIdRaw = $request->input('wareId');
+        $wareId = ($wareIdRaw !== null && $wareIdRaw !== '') ? (int) $wareIdRaw : null;
 
         $start = max(0, (int) $request->input('start', 0));
         $length = (int) $request->input('length', 10);
 
         // DataTables mengirim search sebagai objek dengan properti value.
         $search = trim((string) $request->input('search', ''));
-
-        // Query dasar: samakan kolom dan JOIN dengan DBeaver.
-        // $baseQuery = Purchase::query()
-        //     ->join(
-        //         'JIData.dbo.Supplier as Supplier',
-        //         'PurchaseKB.SupplierId',
-        //         '=',
-        //         'Supplier.SupplierID'
-        //     )
-        //     ->join(
-        //         'JIData.dbo.Inventory as Inventory',
-        //         'PurchaseKB.InvID',
-        //         '=',
-        //         'Inventory.InvId'
-        //     )
-        //     ->join(
-        //         'JIData.dbo.Ware as Ware',
-        //         'PurchaseKB.WareID',
-        //         '=',
-        //         'Ware.WareId'
-        //     )
-        //     ->join(
-        //         'JIData.dbo.PurRec as PurRec',
-        //         'PurchaseKB.GRNo',
-        //         '=',
-        //         'PurRec.GRNo'
-        //     )
-        //     ->join(
-        //         'JIData.dbo.PurRecDet as PurRecDet',
-        //         'PurRec.IDNo',
-        //         '=',
-        //         'PurRecDet.IDNo'
-        //     )
-        //     ->where('PurchaseKB.Period', $period)
-        //     ->where('PurRecDet.Qty', '!=', 0)
-        //     ->when(
-        //         $wareId !== null && $wareId !== '',
-        //         function ($query) use ($wareId) {
-        //             $query->where('PurchaseKB.WareID', $wareId);
-        //         }
-        //     )
-        //     ->select([
-        //         'PurchaseKB.DocType',
-        //         'PurchaseKB.PIBNo',
-        //         'PurchaseKB.PIBDate',
-        //         'PurchaseKB.GRNo',
-        //         'PurchaseKB.GRDate',
-        //         DB::raw(
-        //             'Supplier.[Supplier Name] AS [Supplier Name]'
-        //         ),
-        //         'Inventory.PartNo',
-        //         'Inventory.InvName',
-        //         'PurchaseKB.Unit',
-        //         'PurchaseKB.Qty',
-        //         'PurchaseKB.Currency',
-        //         'PurchaseKB.Amount',
-        //         'PurchaseKB.Up',
-        //         'PurchaseKB.Rate',
-        //         'PurchaseKB.ConUp',
-        //         'PurchaseKB.ConAmount',
-        //         'PurRecDet.InvNo',
-        //         DB::raw(
-        //             'Ware.[Warehouse Name] AS [Warehouse Name]'
-        //         ),
-        //     ])
-        //     ->distinct();
-
 
         $purchaseRows = DB::table('BC_Data.dbo.PurchaseKB as pr')
             ->select('pr.*')
@@ -124,7 +58,7 @@ class PurchaseController extends Controller
             ')
             ->where('pr.Period', $period)
             ->when(
-                $wareId !== null && $wareId !== '',
+                $wareId !== null,
                 function ($query) use ($wareId) {
                     $query->where('pr.WareID', $wareId);
                 }
@@ -185,6 +119,12 @@ class PurchaseController extends Controller
                 }
             )
             ->leftJoin(
+                'JIData.dbo.APInv as APInv',
+                'PurRecDet.InvNo',
+                '=',
+                'APInv.InvNo'
+            )
+            ->leftJoin(
                 'JIData.dbo.Supplier as Supplier',
                 'PurchaseKB.SupplierId',
                 '=',
@@ -222,6 +162,7 @@ class PurchaseController extends Controller
                 'PurchaseKB.ConUp',
                 'PurchaseKB.ConAmount',
                 'PurRecDet.InvNo',
+                'APInv.TaxNo',
                 DB::raw(
                     'Ware.[Warehouse Name] AS [Warehouse Name]'
                 ),
@@ -276,10 +217,15 @@ class PurchaseController extends Controller
             $orderDir = 'asc';
         }
 
-        $dataQuery
-            ->orderBy($orderColumn, $orderDir)
-            ->orderBy('PurchaseKB.GRNo', 'asc')
-            ->orderBy('Inventory.PartNo', 'asc');
+        $dataQuery->orderBy($orderColumn, $orderDir);
+
+        // Tambahkan secondary sort hanya jika belum sama dengan primary sort
+        if ($orderColumn !== 'PurchaseKB.GRNo') {
+            $dataQuery->orderBy('PurchaseKB.GRNo', 'asc');
+        }
+        if ($orderColumn !== 'Inventory.PartNo') {
+            $dataQuery->orderBy('Inventory.PartNo', 'asc');
+        }
 
         if ($length !== -1) {
             $dataQuery->offset($start)->limit(max(1, $length));
@@ -308,9 +254,12 @@ class PurchaseController extends Controller
     public function getWareHouses(Request $request)
     {
         $data = Ware::query()
-            ->select(['WareId', 'Warehouse Name as WarehouseName'])
+            ->select([
+                'WareId',
+                DB::raw('[Warehouse Name] AS WarehouseName'),
+            ])
             ->where('KB', 1)
-            ->orderBy('WareId', 'desc')
+            ->orderBy('WareId', 'asc')
             ->get();
 
         return response()->json([

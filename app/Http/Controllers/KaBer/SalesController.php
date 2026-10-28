@@ -84,7 +84,7 @@ class SalesController extends Controller
         $totalFiltered = (clone $query)->count();
 
         $data = $query
-            ->orderBy('SalesKB.PEBNo', 'asc')
+            ->orderBy('SalesKB.DONo', 'asc')
             ->offset($start)
             ->limit($length)
             ->get();
